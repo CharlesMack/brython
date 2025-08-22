@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Python Fireworks in Browser</title>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython.min.js"></script>
+</head>
+<body onload="brython()">
+<pre id="output"></pre>
+
+<script type="text/python">
+import random, time, asyncio
+from browser import document
+
+COLORS = ["\033[91m","\033[92m","\033[93m","\033[94m","\033[95m","\033[96m"]
+RESET = "\033[0m"
+
+output = document["output"]
+
+async def firework():
+    height = random.randint(5, 15)
+    color = random.choice(COLORS)
+
+    # Rocket up
+    for i in range(height):
+        output.text = "\n" * (20 - i) + " " * 40 + "|"
+        await asyncio.sleep(0.05)
+
+    # Explosion
+    lines = []
+    for _ in range(8):
+        line = " " * 40
+        for _ in range(12):
+            line += color + "*" + RESET if random.random() > 0.5 else " "
+        lines.append(line)
+    output.text = "\n".join(lines)
+    await asyncio.sleep(0.5)
+
+async def run():
+    for _ in range(5):
+        await firework()
+        await asyncio.sleep(0.5)
+
+asyncio.ensure_future(run())
+</script>
+</body>
+</html>
