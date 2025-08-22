@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f16" />
+  <title>P.O.P.S. — Fireworks Home (Brython)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0f16; --ink:#e6ecff; --muted:#9fb2ff; --glass:rgba(255,255,255,.08);
+      --accent:#7aa2ff; --accent2:#d972ff; --ok:#5cf0a5; --warn:#ffd166;
+      --ring: rgba(122,162,255,.55);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      color:var(--ink); background: radial-gradient(1200px 700px at 20% -10%, #14203a 0%, #0b0f16 45%),
+                               radial-gradient(1200px 700px at 120% 10%, #260e34 0%, #0b0f16 40%),
+                               #0b0f16;
+      overflow:hidden;
+    }
+    /* Canvas backdrop */
+    #fx{position:fixed; inset:0; width:100%; height:100%; display:block; z-index:0}
+    /* Scrim for readability */
+    .scrim{position:fixed; inset:0; background:radial-gradient(ellipse at center, rgba(0,0,0,.15), rgba(0,0,0,.55)); z-index:1; pointer-events:none}
+
+    /* Layout */
+    main{position:relative; z-index:2; display:flex; flex-direction:column; gap:18px; height:100%; padding:16px;}
+    header{
+      display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      border:1px solid rgba(255,255,255,.12); box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      padding:14px 16px; border-radius:16px;
+    }
+    .brand{
+      display:flex; gap:12px; align-items:center;
+    }
+    .brand .dot{width:12px;height:12px;border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, var(--accent), var(--accent2));
+      box-shadow: 0 0 14px var(--ring), 0 0 30px rgba(217,114,255,.25);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+    h1{margin:0;font-size:clamp(20px,3.3vw,34px);font-weight:800;letter-spacing:.2px}
+    .subtitle{opacity:.85;font-weight:400;font-size:12px}
+
+    .actions{display:flex; gap:10px; flex-wrap:wrap; justify-self:end}
+    .btn{appearance:none; border:1px solid rgba(255,255,255,.16); color:var(--ink);
+      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
+      padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600;
+      box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    }
+    .btn:hover{border-color:rgba(255,255,255,.28)}
+    .btn.primary{border-color:transparent; background: linear-gradient(180deg, rgba(122,162,255,.45), rgba(122,162,255,.25)); box-shadow:0 8px 30px rgba(122,162,255,.35)}
+
+    .toolbar{
+      display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;
+    }
+    .search{
+      display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:14px;
+      border:1px solid rgba(255,255,255,.12); backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+    }
+    .search input{all:unset; flex:1; font-size:14px}
+    .chips{display:flex; gap:8px; flex-wrap:wrap}
+    .chip{padding:7px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); font-size:12px; opacity:.9; cursor:pointer}
+    .chip.active{background:linear-gradient(180deg, rgba(122,162,255,.35), rgba(122,162,255,.15)); border-color:transparent}
+
+    /* Grid */
+    #grid{
+      position:relative; flex:1; overflow:auto; padding-right:2px; scroll-behavior:smooth;
+      display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap:14px;
+    }
+    .card{
+      display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:16px; cursor:grab;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+      border:1px solid rgba(255,255,255,.12); box-shadow: 0 10px 26px rgba(0,0,0,.28);
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .card:active{cursor:grabbing}
+    .card:hover{transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0,0,0,.34)}
+    .row{display:flex; gap:10px; align-items:center}
+    .icon{width:36px;height:36px;border-radius:10px;background:radial-gradient(circle at 30% 30%, var(--accent), var(--accent2)); box-shadow: inset 0 0 20px rgba(255,255,255,.12), 0 0 24px rgba(122,162,255,.25)}
+    .title{font-weight:700; font-size:14.5px}
+    .desc{opacity:.85; font-size:12px; line-height:1.35}
+    .tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:2px}
+    .tag{font-size:11px; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12)}
+
+    footer{display:flex; justify-content:space-between; align-items:center; gap:12px; opacity:.9}
+    .hint{font-size:12px; opacity:.7}
+
+    /* Dialog */
+    dialog{border:none; border-radius:16px; padding:0; background:transparent}
+    .modal{min-width:320px; max-width:92vw; background: linear-gradient(180deg, rgba(20,26,44,.98), rgba(14,18,34,.96)); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.45)}
+    .modal h3{margin:0 0 8px 0}
+    .field{display:flex; flex-direction:column; gap:6px; margin:8px 0}
+    .field input{all:unset; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06)}
+
+    /* Scrollbar subtle */
+    #grid::-webkit-scrollbar{width:10px}
+    #grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08); border-radius:10px}
+
+    @media (max-width:720px){
+      header{grid-template-columns:1fr}
+      .actions{justify-self:start}
+    }
+      /* HUD overlay */
+    .hud{position:fixed; top:10px; right:12px; z-index:3; font-size:12px; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05)); box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    /* Theme select styling (reuse .btn look) */
+    select#theme{appearance:none; border:1px solid rgba(255,255,255,.16); color:var(--ink); background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05)); padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; box-shadow: 0 2px 10px rgba(0,0,0,.25)}
+  </style>
+  <!-- Brython -->
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.12.3/brython.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.12.3/brython_stdlib.js"></script>
+</head>
+<body onload="brython()">
+  <canvas id="fx"></canvas>
+  <div class="scrim"></div>
+  <div id="fpsHud" class="hud">—</div>
+  <main>
+    <header>
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <h1>P.O.P.S. Fireworks Home</h1>
+          <div class="subtitle">Brython‑powered discovery for your test files · GitHub‑deployable · wow‑factor guaranteed</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btn-refresh">Refresh</button>
+        <button class="btn primary" id="btn-add">Add Link</button>
+        <select id="theme" title="Theme">
+          <option value="midnight">Midnight</option>
+          <option value="neon">Neon</option>
+          <option value="aurora">Aurora</option>
+        </select>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/></svg>
+        <input id="q" placeholder="Search by title, tag, or description…" />
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <section id="grid" aria-live="polite"></section>
+
+    <footer>
+      <div class="hint">Tip: drag cards to reorder · your layout is saved locally · press <strong>/</strong> to focus search</div>
+      <div class="hint" id="count"></div>
+    </footer>
+  </main>
+
+  <dialog id="dlg">
+    <div class="modal">
+      <h3>Add a test link</h3>
+      <div class="field"><label>Title</label><input id="f_title" placeholder="My Test File" /></div>
+      <div class="field"><label>URL</label><input id="f_href" placeholder="./tests/hello.html" /></div>
+      <div class="field"><label>Tags (comma separated)</label><input id="f_tags" placeholder="brython, demo" /></div>
+      <div class="field"><label>Description</label><input id="f_desc" placeholder="What this test shows…" /></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px">
+        <button class="btn" id="btn-cancel">Cancel</button>
+        <button class="btn primary" id="btn-save">Save</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Brython app -->
+  <script type="text/python">
+from browser import document as D, window as W, html, aio, bind
+import random, math, json
+
+# ------------------------------
+# Utilities & persistence
+# ------------------------------
+LS_KEY = 'pops_fireworks_home.v1'
+ORDER_KEY = 'pops_fireworks_home.order'
+TAGS_KEY = 'pops_fireworks_home.tags'
+
+def ls_get(key, default=None):
+    try:
+        v = W.localStorage.getItem(key)
+        return default if v is None else json.loads(v)
+    except Exception:
+        return default
+
+def ls_set(key, value):
+    try:
+        W.localStorage.setItem(key, json.dumps(value))
+    except Exception:
+        pass
+
+# Default entries (used if tests.json missing)
+DEFAULT_ENTRIES = [
+  {
+    'title':'Brython Hello', 'href':'https://brython.info/tests/editor.html',
+    'tags':['brython','sandbox'], 'desc':'In‑browser Python editor powered by Brython.'
+  },
+  {
+    'title':'Pyodide Console', 'href':'https://pyodide.org/en/stable/console.html',
+    'tags':['pyodide','wasm'], 'desc':'Python running in WebAssembly — official console.'
+  },
+  {
+    'title':'P.O.P.S. Dev Tools', 'href':'https://charlesmack.github.io/OnePagerMiniOS/appdrops/dev-editor/index.html',
+    'tags':['appdrop','tools'], 'desc':'Local Dev Tools AppDrop.'
+  },
+  {
+    'title':'Magic Stage Demo', 'href':'https://charlesmack.github.io/OnePagerMiniOS/appdrops/magifico-stage/',
+    'tags':['three.js','demo'], 'desc':'Three.js stage demo.'
+  },
+]
+
+# Attempt to fetch a sibling tests.json manifest
+async def load_manifest():
+    try:
+        res = await W.fetch('./tests.json')
+        if not res.ok:
+            return DEFAULT_ENTRIES
+        data = await res.json()
+        if isinstance(data, list):
+            return data
+    except Exception:
+        pass
+    return DEFAULT_ENTRIES
+
+# ------------------------------
+# Fireworks (canvas) — Brython
+# ------------------------------
+canvas = D['fx']
+ctx = canvas.getContext('2d')
+DPR = 1
+
+class Particle:
+    def __init__(self, x, y, hue):
+        self.x = x; self.y = y
+        a = random.random()*math.tau
+        sp = 2.0 + random.random()*3.5
+        self.vx = math.cos(a)*sp
+        self.vy = math.sin(a)*sp
+        self.life = 60 + int(random.random()*30)
+        self.age = 0
+        self.hue = hue
+        self.alpha = 1.0
+        self.gravity = 0.05
+        self.drag = 0.985
+    def step(self):
+        self.vx *= self.drag
+        self.vy = self.vy*self.drag + self.gravity
+        self.x += self.vx
+        self.y += self.vy
+        self.age += 1
+        self.alpha = max(0.0, 1.0 - self.age/self.life)
+        return self.age < self.life
+
+class Rocket:
+    def __init__(self, w, h):
+        self.x = random.uniform(w*0.2, w*0.8)
+        self.y = h + 10
+        self.vx = random.uniform(-0.6, 0.6)
+        self.vy = - (5.5 + random.random()*2.5)
+        self.color = random.randint(0, 360)
+        self.exploded = False
+        self.height = random.uniform(h*0.25, h*0.55)
+    def step(self):
+        if not self.exploded:
+            self.x += self.vx
+            self.y += self.vy
+            self.vy += 0.08
+            if self.y <= self.height or self.vy >= 0:
+                self.exploded = True
+                return True
+        return False
+
+particles = []
+rockets = []
+last_spawn = 0
+spawn_interval = 600  # ms
+
+# FPS + quality auto-tune
+prev_ts = None
+fps_s = 60.0
+frame_i = 0
+Q = {'burst': 85, 'max_rockets': 3, 'shadows': True}
+
+def quality_label():
+    if Q['burst'] >= 85 and Q['max_rockets'] >= 3 and Q['shadows']:
+        return 'High'
+    if Q['burst'] >= 65:
+        return 'Medium'
+    return 'Low'
+
+def adjust_quality(fps):
+    global spawn_interval
+    # downshift if FPS is low
+    if fps < 50:
+        if Q['burst'] > 50: Q['burst'] = max(50, Q['burst'] - 5)
+        if Q['max_rockets'] > 2: Q['max_rockets'] = 2
+        Q['shadows'] = False
+        spawn_interval = min(900, spawn_interval + 30)
+    # upshift if FPS is high
+    elif fps > 58:
+        if Q['burst'] < 100: Q['burst'] = min(100, Q['burst'] + 5)
+        Q['max_rockets'] = 3
+        Q['shadows'] = True
+        spawn_interval = max(550, spawn_interval - 15)
+
+def resize(*args):
+    global DPR
+    DPR = max(1, round(W.devicePixelRatio or 1))
+    # reset transform each resize to avoid compounding scale
+    canvas.width = int(W.innerWidth * DPR)
+    canvas.height = int(W.innerHeight * DPR)
+    canvas.style.width = f"{W.innerWidth}px"
+    canvas.style.height = f"{W.innerHeight}px"
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
+W.addEventListener('resize', resize)
+resize()
+
+def draw_bg():
+    ctx.fillStyle = "rgba(11,15,22,0.30)"
+    ctx.fillRect(0,0,W.innerWidth, W.innerHeight)
+
+def draw_particle(p: Particle):
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, 2.0, 0, math.tau)
+    ctx.fillStyle = f"hsla({p.hue}, 100%, 62%, {p.alpha})"
+    if Q['shadows']:
+        ctx.shadowBlur = 12
+        ctx.shadowColor = f"hsl({p.hue}, 100%, 65%)"
+    ctx.fill()
+    ctx.shadowBlur = 0
+
+def draw_rocket(r: Rocket):(r: Rocket):
+    ctx.beginPath()
+    ctx.moveTo(r.x, r.y)
+    ctx.lineTo(r.x, r.y+12)
+    ctx.strokeStyle = f"hsla({r.color},100%,70%,.85)"
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+def loop(ts):
+    global last_spawn, prev_ts, fps_s, frame_i
+    # FPS calc (smoothed)
+    if prev_ts is None:
+        prev_ts = ts
+    dt = max(1.0, ts - prev_ts)
+    prev_ts = ts
+    fps_now = 1000.0 / dt
+    fps_s = fps_s*0.9 + fps_now*0.1
+    frame_i += 1
+
+    draw_bg()
+
+    # spawn rockets periodically, limited by quality
+    if ts - last_spawn > spawn_interval and len(rockets) < Q['max_rockets']:
+        rockets.append(Rocket(W.innerWidth, W.innerHeight))
+        last_spawn = ts
+
+    # update rockets
+    alive_rockets = []
+    for r in rockets:
+        if r.step():
+            for _ in range(Q['burst']):
+                particles.append(Particle(r.x, r.y, r.color + random.randint(-12,12)))
+        else:
+            alive_rockets.append(r)
+            draw_rocket(r)
+    rockets[:] = alive_rockets
+
+    # update particles
+    alive = []
+    for p in particles:
+        if p.step():
+            draw_particle(p)
+            alive.append(p)
+    particles[:] = alive
+
+    # periodic auto-tune & HUD
+    if frame_i % 30 == 0:
+        adjust_quality(fps_s)
+    try:
+        D['fpsHud'].text = f"{int(fps_s)} FPS • {quality_label()}"
+    except Exception:
+        pass
+
+    W.requestAnimationFrame(loop)
+
+W.requestAnimationFrame(loop)
+
+# ------------------------------
+# Cards grid + search + tags + reorder
+# ------------------------------
+entries = []
+active_tag = None
+
+
+def unique_tags(items):
+    s = set()
+    for it in items:
+        for t in it.get('tags', []):
+            s.add(t)
+    return sorted(list(s))
+
+
+def render_chips():
+    chips = D['chips']
+    chips.clear()
+    all_btn = html.SPAN("All", Class='chip' + ('' if active_tag else ' active'))
+    def set_all(ev):
+        global active_tag
+        active_tag = None
+        render()
+    all_btn.bind('click', set_all)
+    chips <= all_btn
+    for t in unique_tags(entries):
+        c = html.SPAN(t, Class='chip' + (' active' if active_tag==t else ''))
+        def mk(ev, tag=t):
+            global active_tag
+            active_tag = tag if active_tag!=tag else None
+            render()
+        c.bind('click', mk)
+        chips <= c
+
+
+def get_order():
+    return ls_get(ORDER_KEY, [])
+
+def set_order(ids):
+    ls_set(ORDER_KEY, ids)
+
+
+def card_id(it):
+    return f"{it.get('title','untitled')}::{it.get('href','')}"
+
+
+def sort_by_saved(items):
+    order = get_order()
+    if not order:
+        return items
+    rank = {k:i for i,k in enumerate(order)}
+    return sorted(items, key=lambda it: rank.get(card_id(it), 1e9))
+
+
+def render():
+    grid = D['grid']
+    grid.clear()
+    q = D['q'].value.strip().lower()
+    filtered = []
+    for it in entries:
+        hay = ' '.join([
+            it.get('title',''), ' '.join(it.get('tags',[])), it.get('desc',''), it.get('href','')
+        ]).lower()
+        if q and q not in hay:
+            continue
+        if active_tag and active_tag not in it.get('tags',[]):
+            continue
+        filtered.append(it)
+
+    filtered = sort_by_saved(filtered)
+
+    for it in filtered:
+        card = html.DIV(Class='card', draggable=True)
+        top = html.DIV(Class='row')
+        ico = html.DIV(Class='icon')
+        title = html.DIV(it.get('title','untitled'), Class='title')
+        top <= ico; top <= title
+        card <= top
+        card <= html.DIV(it.get('desc',''), Class='desc')
+        tags = html.DIV(Class='tags')
+        for t in it.get('tags',[]):
+            tags <= html.SPAN(t, Class='tag')
+        card <= tags
+        # open on click
+        def open_link(ev, href=it.get('href','#')):
+            ev.preventDefault()
+            W.open(href, '_blank')
+        card.bind('click', open_link)
+        # dnd
+        def drag_start(ev, cid=card_id(it)):
+            ev.dataTransfer.setData('text/plain', cid)
+            ev.dropEffect = 'move'
+        card.bind('dragstart', drag_start)
+        def drag_over(ev):
+            ev.preventDefault()
+        card.bind('dragover', drag_over)
+        def drop(ev, target_id=card_id(it)):
+            ev.preventDefault()
+            src = ev.dataTransfer.getData('text/plain')
+            ids = [card_id(x) for x in filtered]
+            if src in ids and target_id in ids and src != target_id:
+                si = ids.index(src); ti = ids.index(target_id)
+                filtered.insert(ti, filtered.pop(si))
+                set_order([card_id(x) for x in filtered])
+                render()
+        card.bind('drop', drop)
+        grid <= card
+
+    D['count'].text = f"Showing {len(filtered)} of {len(entries)}"
+    render_chips()
+
+
+async def init_entries():
+    global entries
+    custom = ls_get(LS_KEY, []) or []
+    manifest = await load_manifest()
+    # Merge with custom entries (custom first to honor user additions)
+    seen = set()
+    merged = []
+    for src in (custom + manifest):
+        cid = (src.get('title',''), src.get('href',''))
+        if cid in seen:
+            continue
+        seen.add(cid)
+        merged.append(src)
+    entries = merged
+    render()
+
+# ------------------------------
+# Themes
+# ------------------------------
+THEME_KEY = 'pops_fireworks_home.theme'
+THEMES = {
+  'midnight': {
+    'vars': {
+      '--ink':'#e6ecff','--accent':'#7aa2ff','--accent2':'#d972ff','--muted':'#9fb2ff'
+    },
+    'bg': 'radial-gradient(1200px 700px at 20% -10%, #14203a 0%, #0b0f16 45%), radial-gradient(1200px 700px at 120% 10%, #260e34 0%, #0b0f16 40%), #0b0f16'
+  },
+  'neon': {
+    'vars': {
+      '--ink':'#f3f7ff','--accent':'#00eaff','--accent2':'#ff00f7','--muted':'#a0ffd6'
+    },
+    'bg': 'radial-gradient(1200px 700px at 15% -10%, #072b3a 0%, #0a0f14 50%), radial-gradient(1200px 700px at 110% 10%, #30063a 0%, #0a0f14 45%), #0a0f14'
+  },
+  'aurora': {
+    'vars': {
+      '--ink':'#e9fff8','--accent':'#6cfcb5','--accent2':'#6cc3ff','--muted':'#b3ffe7'
+    },
+    'bg': 'radial-gradient(1200px 700px at 25% -10%, #0e2a22 0%, #071215 50%), radial-gradient(1200px 700px at 115% 10%, #0a1f33 0%, #071215 45%), #071215'
+  }
+}
+
+def apply_theme(name):
+    t = THEMES.get(name, THEMES['midnight'])
+    root = D.documentElement
+    for k,v in t['vars'].items():
+        root.style.setProperty(k, v)
+    D.body.style.background = t['bg']
+    ls_set(THEME_KEY, name)
+
+
+def init_theme():
+    name = ls_get(THEME_KEY, 'midnight')
+    try:
+        D['theme'].value = name
+    except Exception:
+        pass
+    apply_theme(name)
+
+# ------------------------------
+# UI events
+# ------------------------------
+D['q'].bind('input', lambda ev: render())
+
+# Focus search with '/'
+@bind(W, "keydown")
+def key_shortcuts(ev):
+    if ev.key == '/':
+        ev.preventDefault(); D['q'].focus()
+
+# Add Link dialog
+
+dlg = D['dlg']
+btn_add = D['btn-add']
+btn_cancel = D['btn-cancel']
+btn_save = D['btn-save']
+
+
+def open_dialog(ev=None):
+    D['f_title'].value = ''
+    D['f_href'].value = ''
+    D['f_tags'].value = ''
+    D['f_desc'].value = ''
+    dlg.showModal()
+
+btn_add.bind('click', open_dialog)
+btn_cancel.bind('click', lambda ev: dlg.close())
+
+
+def save_entry(ev=None):
+    title = D['f_title'].value.strip()
+    href = D['f_href'].value.strip()
+    tags = [t.strip() for t in D['f_tags'].value.split(',') if t.strip()]
+    desc = D['f_desc'].value.strip()
+    if not title or not href:
+        dlg.close(); return
+    new = {'title':title,'href':href,'tags':tags,'desc':desc}
+    custom = ls_get(LS_KEY, []) or []
+    custom.insert(0, new)
+    ls_set(LS_KEY, custom)
+    # Move to front via order
+    cur = get_order()
+    cur = [card_id(new)] + [x for x in cur if x != card_id(new)]
+    set_order(cur)
+    dlg.close()
+    aio.run(init_entries())
+
+btn_save.bind('click', save_entry)
+
+# Refresh button
+D['btn-refresh'].bind('click', lambda ev: aio.run(init_entries()))
+
+# Theme dropdown binding
+try:
+    def on_theme_change(ev):
+        apply_theme(ev.target.value)
+    D['theme'].bind('change', on_theme_change)
+except Exception:
+    pass
+
+# Kickoff
+init_theme()
+aio.run(init_entries())
+  </script>
+</body>
+</html>
