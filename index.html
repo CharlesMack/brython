@@ -164,8 +164,8 @@
 
   <!-- Brython app -->
   <script type="text/python">
-from browser import document as D, window as W, html
-import asyncio, random, math, json
+from browser import document as D, window as W, html, aio, bind
+import random, math, json
 
 # ------------------------------
 # Utilities & persistence
@@ -202,7 +202,7 @@ DEFAULT_ENTRIES = [
     'tags':['appdrop','tools'], 'desc':'Local Dev Tools AppDrop (if present in your repo).'
   },
   {
-    'title':'Magic Stage Demo', 'href':'https://charlesmack.github.io/OnePagerMiniOS/appdrops/magifico-stage/index.html',
+    'title':'Magic Stage Demo', 'href':'http://charlesmack.github.io/OnePagerMiniOS/appdrops/magifico-stage/',
     'tags':['three.js','demo'], 'desc':'Three.js stage demo (placeholder link).'
   },
 ]
@@ -240,7 +240,6 @@ class Particle:
         self.alpha = 1.0
         self.gravity = 0.05
         self.drag = 0.985
-
     def step(self):
         self.vx *= self.drag
         self.vy = self.vy*self.drag + self.gravity
@@ -259,12 +258,11 @@ class Rocket:
         self.color = random.randint(0, 360)
         self.exploded = False
         self.height = random.uniform(h*0.25, h*0.55)
-
     def step(self):
         if not self.exploded:
             self.x += self.vx
             self.y += self.vy
-            self.vy += 0.08  # gravity pulling rocket down
+            self.vy += 0.08
             if self.y <= self.height or self.vy >= 0:
                 self.exploded = True
                 return True
@@ -272,29 +270,24 @@ class Rocket:
 
 particles = []
 rockets = []
-
 last_spawn = 0
 spawn_interval = 600  # ms
-
 
 def resize(*args):
     global DPR
     DPR = max(1, round(W.devicePixelRatio or 1))
+    # reset transform each resize to avoid compounding scale
     canvas.width = int(W.innerWidth * DPR)
     canvas.height = int(W.innerHeight * DPR)
     canvas.style.width = f"{W.innerWidth}px"
     canvas.style.height = f"{W.innerHeight}px"
-    ctx.scale(DPR, DPR)
-
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
 W.addEventListener('resize', resize)
 resize()
 
-
 def draw_bg():
-    # motion blur trail
     ctx.fillStyle = "rgba(11,15,22,0.30)"
     ctx.fillRect(0,0,W.innerWidth, W.innerHeight)
-
 
 def draw_particle(p: Particle):
     ctx.beginPath()
@@ -305,7 +298,6 @@ def draw_particle(p: Particle):
     ctx.fill()
     ctx.shadowBlur = 0
 
-
 def draw_rocket(r: Rocket):
     ctx.beginPath()
     ctx.moveTo(r.x, r.y)
@@ -314,30 +306,23 @@ def draw_rocket(r: Rocket):
     ctx.lineWidth = 2
     ctx.stroke()
 
-
-async def loop():
+def loop(ts):
     global last_spawn
-    t = int(W.performance.now())
     draw_bg()
-
     # spawn rockets periodically
-    if t - last_spawn > spawn_interval and len(rockets) < 3:
+    if ts - last_spawn > spawn_interval and len(rockets) < 3:
         rockets.append(Rocket(W.innerWidth, W.innerHeight))
-        last_spawn = t
-
+        last_spawn = ts
     # update rockets
-    new_bursts = []
     alive_rockets = []
     for r in rockets:
         if r.step():
-            # explode into particles
             for _ in range(85):
                 particles.append(Particle(r.x, r.y, r.color + random.randint(-12,12)))
         else:
             alive_rockets.append(r)
             draw_rocket(r)
     rockets[:] = alive_rockets
-
     # update particles
     alive = []
     for p in particles:
@@ -345,11 +330,9 @@ async def loop():
             draw_particle(p)
             alive.append(p)
     particles[:] = alive
+    W.requestAnimationFrame(loop)
 
-    await asyncio.sleep(0)  # yield to browser
-    W.requestAnimationFrame(lambda *_: asyncio.ensure_future(loop()))
-
-asyncio.ensure_future(loop())
+W.requestAnimationFrame(loop)
 
 # ------------------------------
 # Cards grid + search + tags + reorder
@@ -485,7 +468,7 @@ async def init_entries():
 D['q'].bind('input', lambda ev: render())
 
 # Focus search with '/'
-@W.addEventListener('keydown')
+@bind(W, "keydown")
 def key_shortcuts(ev):
     if ev.key == '/':
         ev.preventDefault(); D['q'].focus()
@@ -525,15 +508,15 @@ def save_entry(ev=None):
     cur = [card_id(new)] + [x for x in cur if x != card_id(new)]
     set_order(cur)
     dlg.close()
-    asyncio.ensure_future(init_entries())
+    aio.run(init_entries())
 
 btn_save.bind('click', save_entry)
 
 # Refresh button
-D['btn-refresh'].bind('click', lambda ev: asyncio.ensure_future(init_entries()))
+D['btn-refresh'].bind('click', lambda ev: aio.run(init_entries()))
 
 # Kickoff
-asyncio.ensure_future(init_entries())
+aio.run(init_entries())
   </script>
 </body>
 </html>
