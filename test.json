@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Hello Brython",
+    "href": "./tests/hello.html",
+    "tags": ["brython", "demo"],
+    "desc": "First run — Python in the browser."
+  },
+  {
+    "title": "Media Hub",
+    "href": "./tests/media.html",
+    "tags": ["appdrop", "media"],
+    "desc": "Offline-first P.O.P.S. Media Hub demo."
+  }
+]
