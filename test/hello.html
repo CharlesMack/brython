@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hello Brython</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#0b0f16; --ink:#e6ecff; --glass:rgba(255,255,255,.08); }
+    *{box-sizing:border-box} body{margin:0; font-family:Inter, system-ui, sans-serif; background:var(--bg); color:var(--ink)}
+    .wrap{max-width:720px; margin:40px auto; padding:20px; border-radius:16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+      border:1px solid rgba(255,255,255,.12); box-shadow: 0 10px 26px rgba(0,0,0,.28);}
+    h1{margin:0 0 8px 0} .row{display:flex; gap:8px; align-items:center; margin:10px 0}
+    button{appearance:none; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:var(--ink);
+      padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer}
+    input{all:unset; padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.06)}
+    .note{opacity:.8; font-size:13px}
+    canvas{display:block; margin-top:12px; width:100%; height:160px; background:rgba(255,255,255,.03); border-radius:12px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.12.3/brython.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.12.3/brython_stdlib.js"></script>
+</head>
+<body onload="brython()">
+  <div class="wrap">
+    <h1>Hello from Brython 👋</h1>
+    <p class="note">This page shows simple DOM control, a live clock, and a tiny canvas confetti burst.</p>
+
+    <div class="row"><strong>Now:</strong> <span id="now">—</span></div>
+
+    <div class="row">
+      <button id="inc">Count: <span id="n">0</span></button>
+      <input id="echo" placeholder="Type here…" />
+      <strong id="mirror"></strong>
+    </div>
+
+    <canvas id="c"></canvas>
+    <div class="note">Click the button to increment; type to mirror; click the canvas for confetti.</div>
+  </div>
+
+  <script type="text/python">
+from browser import document as D, window as W
+import math, random
+
+# live clock
+def tick(ev=None):
+    D["now"].text = W.Date().toLocaleString()
+W.setInterval(tick, 1000); tick()
+
+# counter + echo
+count = 0
+def inc(ev):
+    global count; count += 1
+    D["n"].text = str(count)
+D["inc"].bind("click", inc)
+D["echo"].bind("input", lambda ev: D["mirror"].text == ev.target.value)
+
+# tiny confetti
+cv = D["c"]; ctx = cv.getContext("2d")
+def resize(*a):
+    cv.width = cv.offsetWidth; cv.height = 160
+resize(); W.addEventListener("resize", resize)
+
+def confetti(ev=None):
+    w,h = cv.width, cv.height
+    for i in range(120):
+        x = random.random()*w; y = random.random()*h
+        a = random.random()*math.tau; r = 2+random.random()*3
+        ctx.fillStyle = f"hsl({int(random.random()*360)},100%,60%)"
+        ctx.beginPath(); ctx.arc(x, y, r, 0, math.tau); ctx.fill()
+cv.bind("click", confetti)
+  </script>
+</body>
+</html>
